@@ -1,0 +1,29 @@
+{
+  "source_donnees": "AI4I 2020 (UCI)",
+  "n_test": 2000,
+  "taux_panne_test": 0.034,
+  "seuil_decision": 0.5,
+  "f1": 0.6792,
+  "precision": 0.5934,
+  "recall": 0.7941,
+  "roc_auc": 0.9709,
+  "confusion_matrix": {
+    "vrais_negatifs": 1895,
+    "faux_positifs": 37,
+    "faux_negatifs": 14,
+    "vrais_positifs": 54
+  },
+  "importance_features": {
+    "type_code": 0.0116,
+    "air_temp_k": 0.0928,
+    "process_temp_k": 0.0579,
+    "rpm": 0.2815,
+    "torque_nm": 0.3384,
+    "tool_wear_min": 0.2179
+  },
+  "au_seuil_alarme_0.7": {
+    "precision": 0.8333,
+    "recall": 0.6618,
+    "f1": 0.7377
+  }
+}

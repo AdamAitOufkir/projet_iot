@@ -1,0 +1,134 @@
+{
+  "ruleChain": {
+    "name": "Projet 11 - Alarme panne_probable",
+    "type": "CORE",
+    "firstRuleNodeId": null,
+    "root": false,
+    "debugMode": false,
+    "configuration": null,
+    "additionalInfo": {
+      "description": "Alarme CRITICAL si panne_probable > threshold (attribut partagé du device, 0.7 par défaut)"
+    }
+  },
+  "metadata": {
+    "firstNodeIndex": 0,
+    "nodes": [
+      {
+        "type": "org.thingsboard.rule.engine.filter.TbMsgTypeSwitchNode",
+        "name": "Type de message",
+        "debugMode": false,
+        "singletonMode": false,
+        "configurationVersion": 0,
+        "configuration": { "version": 0 },
+        "additionalInfo": { "description": "", "layoutX": 300, "layoutY": 150 }
+      },
+      {
+        "type": "org.thingsboard.rule.engine.telemetry.TbMsgTimeseriesNode",
+        "name": "Sauver télémétrie",
+        "debugMode": false,
+        "singletonMode": false,
+        "configurationVersion": 1,
+        "configuration": {
+          "defaultTTL": 0,
+          "useServerTs": false,
+          "processingSettings": { "type": "ON_EVERY_MESSAGE" }
+        },
+        "additionalInfo": { "description": "", "layoutX": 600, "layoutY": 80 }
+      },
+      {
+        "type": "org.thingsboard.rule.engine.telemetry.TbMsgAttributesNode",
+        "name": "Sauver attributs",
+        "debugMode": false,
+        "singletonMode": false,
+        "configurationVersion": 3,
+        "configuration": {
+          "processingSettings": { "type": "ON_EVERY_MESSAGE" },
+          "scope": "CLIENT_SCOPE",
+          "notifyDevice": false,
+          "sendAttributesUpdatedNotification": false,
+          "updateAttributesOnlyOnValueChange": true
+        },
+        "additionalInfo": { "description": "", "layoutX": 600, "layoutY": 260 }
+      },
+      {
+        "type": "org.thingsboard.rule.engine.metadata.TbGetAttributesNode",
+        "name": "Lire attribut partagé threshold",
+        "debugMode": false,
+        "singletonMode": false,
+        "configurationVersion": 1,
+        "configuration": {
+          "tellFailureIfAbsent": false,
+          "fetchTo": "METADATA",
+          "clientAttributeNames": [],
+          "sharedAttributeNames": ["threshold"],
+          "serverAttributeNames": [],
+          "latestTsKeyNames": [],
+          "getLatestValueWithTs": false
+        },
+        "additionalInfo": {
+          "description": "Ajoute metadata.shared_threshold (seuil modifiable sans redéploiement)",
+          "layoutX": 900,
+          "layoutY": 80
+        }
+      },
+      {
+        "type": "org.thingsboard.rule.engine.filter.TbJsFilterNode",
+        "name": "panne_probable > seuil ?",
+        "debugMode": false,
+        "singletonMode": false,
+        "configurationVersion": 0,
+        "configuration": {
+          "scriptLang": "TBEL",
+          "jsScript": "var seuil = 0.7;\nif (metadata.shared_threshold != null) { seuil = parseFloat(metadata.shared_threshold); }\nreturn msg.panne_probable != null && msg.panne_probable > seuil;",
+          "tbelScript": "var seuil = 0.7;\nif (metadata.shared_threshold != null) { seuil = parseFloat(metadata.shared_threshold); }\nreturn msg.panne_probable != null && msg.panne_probable > seuil;"
+        },
+        "additionalInfo": { "description": "", "layoutX": 1200, "layoutY": 80 }
+      },
+      {
+        "type": "org.thingsboard.rule.engine.action.TbCreateAlarmNode",
+        "name": "Créer alarme CRITICAL",
+        "debugMode": false,
+        "singletonMode": false,
+        "configurationVersion": 0,
+        "configuration": {
+          "scriptLang": "TBEL",
+          "alarmDetailsBuildJs": "var details = {};\ndetails.panne_probable = msg.panne_probable;\ndetails.seuil = metadata.shared_threshold;\nreturn details;",
+          "alarmDetailsBuildTbel": "var details = {};\ndetails.panne_probable = msg.panne_probable;\ndetails.seuil = metadata.shared_threshold != null ? metadata.shared_threshold : '0.7 (défaut)';\ndetails.machine = metadata.deviceName;\nreturn details;",
+          "useMessageAlarmData": false,
+          "overwriteAlarmDetails": true,
+          "alarmType": "Panne probable",
+          "severity": "CRITICAL",
+          "propagate": false,
+          "relationTypes": [],
+          "propagateToOwner": false,
+          "propagateToTenant": false,
+          "dynamicSeverity": false
+        },
+        "additionalInfo": { "description": "", "layoutX": 1500, "layoutY": 30 }
+      },
+      {
+        "type": "org.thingsboard.rule.engine.action.TbClearAlarmNode",
+        "name": "Effacer alarme",
+        "debugMode": false,
+        "singletonMode": false,
+        "configurationVersion": 0,
+        "configuration": {
+          "scriptLang": "TBEL",
+          "alarmDetailsBuildJs": "var details = {};\nif (metadata.prevAlarmDetails) { details = JSON.parse(metadata.prevAlarmDetails); }\nreturn details;",
+          "alarmDetailsBuildTbel": "var details = {};\nif (metadata.prevAlarmDetails != null) { details = JSON.parse(metadata.prevAlarmDetails); }\ndetails.derniere_valeur = msg.panne_probable;\nreturn details;",
+          "alarmType": "Panne probable"
+        },
+        "additionalInfo": { "description": "", "layoutX": 1500, "layoutY": 150 }
+      }
+    ],
+    "connections": [
+      { "fromIndex": 0, "toIndex": 1, "type": "Post telemetry" },
+      { "fromIndex": 0, "toIndex": 2, "type": "Post attributes" },
+      { "fromIndex": 1, "toIndex": 3, "type": "Success" },
+      { "fromIndex": 3, "toIndex": 4, "type": "Success" },
+      { "fromIndex": 4, "toIndex": 5, "type": "True" },
+      { "fromIndex": 4, "toIndex": 6, "type": "False" }
+    ],
+    "ruleChainConnections": null
+  }
+}

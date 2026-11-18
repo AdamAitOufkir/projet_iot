@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monitoring live</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root { --bg:#0f172a; --card:#1e293b; --txt:#e2e8f0; --muted:#94a3b8; --ok:#22c55e; --warn:#f59e0b; --ko:#ef4444; }
+  body { margin:0; padding:16px; background:var(--bg); color:var(--txt); font-family:system-ui,sans-serif; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  #etat { color:var(--muted); font-size:13px; margin-bottom:16px; }
+  .cartes { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin-bottom:16px; }
+  .carte { background:var(--card); border-radius:10px; padding:14px; border-left:6px solid var(--ok); }
+  .carte.alerte { border-left-color:var(--ko); animation:clignote 1s infinite; }
+  .carte .nom { color:var(--muted); font-size:13px; }
+  .carte .val { font-size:40px; font-weight:700; }
+  .barre { height:8px; background:#334155; border-radius:4px; overflow:hidden; }
+  .barre div { height:100%; background:var(--ok); transition:width .3s; }
+  .graph { background:var(--card); border-radius:10px; padding:12px; height:320px; }
+  @keyframes clignote { 50% { background:#3f1d1d; } }
+</style>
+</head>
+<body>
+  <h1>Maintenance prédictive : panne_probable en direct (WebSocket)</h1>
+  <div id="etat">Connexion…</div>
+  <div class="cartes" id="cartes"></div>
+  <div class="graph"><canvas id="courbe"></canvas></div>
+
+<script>
+const SEUIL = 0.7, MAX_POINTS = 60;
+const couleurs = { M1:"#38bdf8", M2:"#a78bfa", M3:"#f472b6" };
+const chart = new Chart(document.getElementById("courbe"), {
+  type: "line",
+  data: { labels: [], datasets: [] },
+  options: { animation:false, maintainAspectRatio:false,
+    scales: { y:{ min:0, max:1, ticks:{color:"#94a3b8"} }, x:{ ticks:{color:"#94a3b8", maxTicksLimit:8} } },
+    plugins: { legend:{ labels:{color:"#e2e8f0"} } } }
+});
+// ligne horizontale du seuil
+chart.data.datasets.push({ label:"seuil 0.7", data:[], borderColor:"#ef4444", borderDash:[6,4], pointRadius:0 });
+
+function carte(id) {
+  let el = document.getElementById("c-" + id);
+  if (!el) {
+    el = document.createElement("div");
+    el.className = "carte"; el.id = "c-" + id;
+    el.innerHTML = `<div class="nom">Machine ${id}</div><div class="val">-</div><div class="barre"><div></div></div>`;
+    document.getElementById("cartes").appendChild(el);
+    chart.data.datasets.push({ label:id, data:[], borderColor:couleurs[id] || "#fff", pointRadius:0, tension:.2, spanGaps:true });
+  }
+  return el;
+}
+
+function afficher(r) {
+  const p = r.panne_probable, el = carte(r.machine_id);
+  el.querySelector(".val").textContent = (p * 100).toFixed(1) + " %";
+  const b = el.querySelector(".barre div");
+  b.style.width = (p * 100) + "%";
+  b.style.background = p > SEUIL ? "var(--ko)" : p > 0.5 ? "var(--warn)" : "var(--ok)";
+  el.classList.toggle("alerte", p > SEUIL);
+
+  chart.data.labels.push(new Date(r.ts || Date.now()).toLocaleTimeString());
+  for (const ds of chart.data.datasets) {
+    ds.data.push(ds.label === r.machine_id ? p : ds.label.startsWith("seuil") ? SEUIL : null);
+    if (ds.data.length > MAX_POINTS) ds.data.shift();
+  }
+  if (chart.data.labels.length > MAX_POINTS) chart.data.labels.shift();
+  chart.update();
+}
+
+function connecter() {
+  const ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.onopen = () => document.getElementById("etat").textContent = "Connecté à " + ws.url;
+  ws.onmessage = (e) => afficher(JSON.parse(e.data));
+  ws.onclose = () => { document.getElementById("etat").textContent = "Déconnecté, reconnexion…"; setTimeout(connecter, 2000); };
+}
+connecter();
+</script>
+</body>
+</html>

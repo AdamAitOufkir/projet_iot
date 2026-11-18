@@ -1,0 +1,4 @@
+protocole,messages,latence_moy_ms,latence_p95_ms,payload_octets,overhead_octets,total_octets,overhead_pct,fiabilite_pct
+MQTT (QoS 1),100,0.6,0.79,191,26,217,12.0,100.0
+REST / HTTP 1.1,100,1.24,1.77,191,317,508,62.4,100.0
+WebSocket,100,0.39,0.69,191,21,212,9.9,100.0

@@ -1,0 +1,578 @@
+{
+  "uid": "projet11-maintenance",
+  "title": "Projet 11 · Maintenance prédictive",
+  "tags": [
+    "iot",
+    "maintenance",
+    "ai4i"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "machine_id",
+        "label": "Machine",
+        "type": "query",
+        "datasource": {
+          "type": "influxdb",
+          "uid": "influxdb-p11"
+        },
+        "query": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: \"maintenance\", tag: \"machine_id\")",
+        "definition": "machine_id tag values",
+        "multi": true,
+        "includeAll": true,
+        "refresh": 2,
+        "sort": 1,
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 100,
+      "type": "text",
+      "title": "",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 2
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "**Projet 11 · Maintenance prédictive** : capteurs AI4I rejoués en MQTT → Node-RED (sous-flux Prétraitement_Machine) → modèle RandomForest → InfluxDB. Seuil d'alarme : **0.7** (attribut partagé ThingsBoard)."
+      }
+    },
+    {
+      "id": 1,
+      "type": "gauge",
+      "title": "Probabilité de panne : dernière valeur",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-p11"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 2,
+        "w": 12,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-p11"
+          },
+          "query": "from(bucket: \"maintenance\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"machine\")\n  |> filter(fn: (r) => contains(value: r.machine_id, set: ${machine_id:json}))\n  |> filter(fn: (r) => r._field == \"panne_probable\")\n  |> last()\n"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.5
+              },
+              {
+                "color": "red",
+                "value": 0.7
+              }
+            ]
+          },
+          "displayName": "${__field.labels.machine_id}"
+        },
+        "overrides": []
+      },
+      "options": {
+        "showThresholdMarkers": true,
+        "showThresholdLabels": false,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Mesures au-dessus du seuil (0.7) sur la période",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-p11"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 2,
+        "w": 6,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-p11"
+          },
+          "query": "from(bucket: \"maintenance\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"machine\")\n  |> filter(fn: (r) => contains(value: r.machine_id, set: ${machine_id:json}))\n  |> filter(fn: (r) => r._field == \"panne_probable\")\n  |> filter(fn: (r) => r._value > 0.7)\n  |> count()\n"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "displayName": "${__field.labels.machine_id}",
+          "noValue": "0",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Messages reçus sur la période",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-p11"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 2,
+        "w": 6,
+        "h": 7
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-p11"
+          },
+          "query": "from(bucket: \"maintenance\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"machine\")\n  |> filter(fn: (r) => contains(value: r.machine_id, set: ${machine_id:json}))\n  |> filter(fn: (r) => r._field == \"panne_probable\")\n  |> count()\n"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "displayName": "${__field.labels.machine_id}",
+          "noValue": "0",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "panne_probable dans le temps (ligne rouge = seuil 0.7)",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-p11"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-p11"
+          },
+          "query": "from(bucket: \"maintenance\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"machine\")\n  |> filter(fn: (r) => contains(value: r.machine_id, set: ${machine_id:json}))\n  |> filter(fn: (r) => r._field == \"panne_probable\")\n  |> aggregateWindow(every: v.windowPeriod, fn: max, createEmpty: false)\n"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 1,
+          "displayName": "${__field.labels.machine_id}",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.5
+              },
+              {
+                "color": "red",
+                "value": 0.7
+              }
+            ]
+          },
+          "custom": {
+            "thresholdsStyle": {
+              "mode": "line+area"
+            },
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "insertNulls": 30000,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Températures (K) : air et process",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-p11"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-p11"
+          },
+          "query": "from(bucket: \"maintenance\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"machine\")\n  |> filter(fn: (r) => contains(value: r.machine_id, set: ${machine_id:json}))\n  |> filter(fn: (r) => r._field == \"air_temp_k\" or r._field == \"process_temp_k\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kelvin",
+          "displayName": "${__field.labels.machine_id} · ${__field.name}",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "insertNulls": 30000,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Vitesse de rotation (tr/min)",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-p11"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 17,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-p11"
+          },
+          "query": "from(bucket: \"maintenance\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"machine\")\n  |> filter(fn: (r) => contains(value: r.machine_id, set: ${machine_id:json}))\n  |> filter(fn: (r) => r._field == \"rpm\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "rotrpm",
+          "displayName": "${__field.labels.machine_id}",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "insertNulls": 30000,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Couple (N·m)",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-p11"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 25,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-p11"
+          },
+          "query": "from(bucket: \"maintenance\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"machine\")\n  |> filter(fn: (r) => contains(value: r.machine_id, set: ${machine_id:json}))\n  |> filter(fn: (r) => r._field == \"torque_nm\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "displayName": "${__field.labels.machine_id}",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "insertNulls": 30000,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Usure de l'outil (min)",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-p11"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 25,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-p11"
+          },
+          "query": "from(bucket: \"maintenance\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"machine\")\n  |> filter(fn: (r) => contains(value: r.machine_id, set: ${machine_id:json}))\n  |> filter(fn: (r) => r._field == \"tool_wear_min\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "displayName": "${__field.labels.machine_id}",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "insertNulls": 30000,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "table",
+      "title": "Dernières alertes (panne_probable > 0.7)",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb-p11"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 33,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb-p11"
+          },
+          "query": "from(bucket: \"maintenance\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"machine\")\n  |> filter(fn: (r) => contains(value: r.machine_id, set: ${machine_id:json}))\n  |> filter(fn: (r) => r._field == \"panne_probable\")\n  |> filter(fn: (r) => r._value > 0.7)\n  |> group()\n  |> sort(columns: [\"_time\"], desc: true)\n  |> limit(n: 15)\n  |> keep(columns: [\"_time\", \"machine_id\", \"_value\"])\n"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.5
+              },
+              {
+                "color": "red",
+                "value": 0.7
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "_value"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "panne_probable"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "_time"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Horodatage"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true
+      }
+    }
+  ]
+}

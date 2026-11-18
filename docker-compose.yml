@@ -1,0 +1,89 @@
+# Projet 11 - Maintenance prédictive : couche "Réseau" + "Cloud / Application"
+# Lancement :  docker compose up -d
+# (l'API ML  src/api.py  tourne hors Docker, sur la machine hôte, port 8000)
+name: projet11
+
+services:
+  # --- Broker MQTT : reçoit le flux de mesures du simulateur ---
+  mosquitto:
+    image: eclipse-mosquitto:2.0.20
+    container_name: p11-mosquitto
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+    restart: unless-stopped
+
+  # --- Node-RED : sous-flux de prétraitement, appel du modèle, routage ---
+  nodered:
+    image: nodered/node-red:4.0.9
+    container_name: p11-nodered
+    ports:
+      - "1880:1880"
+    environment:
+      TZ: Europe/Paris
+      INFLUX_TOKEN: projet11-token          # utilisé par le nœud d'écriture InfluxDB
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # pour joindre api.py qui tourne sur l'hôte
+    volumes:
+      - nodered-data:/data
+    depends_on: [mosquitto, influxdb]
+    restart: unless-stopped
+
+  # --- ThingsBoard CE : Rule Engine, attribut partagé "threshold", alarmes ---
+  thingsboard:
+    image: thingsboard/tb-postgres:4.0.2
+    container_name: p11-thingsboard
+    ports:
+      - "8080:9090"   # interface web + API REST
+      - "1884:1883"   # MQTT ThingsBoard (1883 est déjà pris par Mosquitto)
+    environment:
+      TB_QUEUE_TYPE: in-memory
+    volumes:
+      - tb-data:/data
+      - tb-logs:/var/log/thingsboard
+    restart: unless-stopped
+
+  # --- InfluxDB v2 : base de données temporelle (mesures + prédictions) ---
+  influxdb:
+    image: influxdb:2.7.11
+    container_name: p11-influxdb
+    ports:
+      - "8086:8086"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: admin
+      DOCKER_INFLUXDB_INIT_PASSWORD: admin12345
+      DOCKER_INFLUXDB_INIT_ORG: usine
+      DOCKER_INFLUXDB_INIT_BUCKET: maintenance
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: projet11-token
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+      - influxdb-config:/etc/influxdb2
+    restart: unless-stopped
+
+  # --- Grafana : dashboard (datasource + dashboard provisionnés automatiquement) ---
+  grafana:
+    image: grafana/grafana-oss:11.4.0
+    container_name: p11-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./configs/grafana_dashboard.json:/var/lib/grafana/dashboards/maintenance.json:ro
+      - grafana-data:/var/lib/grafana
+    depends_on: [influxdb]
+    restart: unless-stopped
+
+volumes:
+  mosquitto-data:
+  nodered-data:
+  tb-data:
+  tb-logs:
+  influxdb-data:
+  influxdb-config:
+  grafana-data:

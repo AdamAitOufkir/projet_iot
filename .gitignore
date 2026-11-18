@@ -1,0 +1,25 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Données générées
+data/history.csv
+
+# Secrets / environnement local
+.env
+*.pem
+*.key
+
+# OS / éditeurs
+.DS_Store
+Thumbs.db
+*Zone.Identifier
+.vscode/
+.idea/
+
+# Logos tiers (marques déposées, déjà intégrés au .pptx)
+presentation/logos/
+~$*
